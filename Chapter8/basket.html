@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Basketball Simulation</title>
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script>
+        AFRAME.registerComponent('basketball-controller', {
+            init: function () {
+                const el = this.el;
+                const hoopPosition = new THREE.Vector3(0, 3, -5);  // Position of the hoop
+
+                el.addEventListener('click', function () {
+                    const direction = new THREE.Vector3();
+                    el.object3D.getWorldDirection(direction);
+
+                    // Get the position of the ball
+                    const ballPosition = el.object3D.position;
+
+                    // Calculate the direction vector from the ball to the hoop
+                    const throwDirection = hoopPosition.clone().sub(ballPosition).normalize();
+
+                    // Add a vertical component to the throw direction to simulate an arc
+                    throwDirection.y = Math.abs(throwDirection.y) * 0.8 + 0.4; // Adjust the arc height
+
+                    // Calculate throw speed based on distance
+                    const throwSpeed = 8;
+
+                    // Set the velocity for a more realistic arc
+                    el.setAttribute('velocity', {
+                        x: throwDirection.x * throwSpeed,  // Forward speed
+                        y: throwDirection.y * throwSpeed + 3,  // Vertical arc (gravity pulls it down)
+                        z: throwDirection.z * throwSpeed   // Sideways speed
+                    });
+
+                    // Animate the ball's movement with trajectory
+                    el.setAttribute('animation', {
+                        property: 'position',
+                        to: `${hoopPosition.x} ${hoopPosition.y} ${hoopPosition.z}`,
+                        dur: 2000,  // Duration of the animation (time to reach hoop)
+                        easing: 'easeOutQuad',
+                        loop: false
+                    });
+                });
+            }
+        });
+
+        AFRAME.registerComponent('velocity', {
+            schema: {
+                x: { type: 'number', default: 0 },
+                y: { type: 'number', default: 0 },
+                z: { type: 'number', default: 0 }
+            },
+
+            tick: function (time, timeDelta) {
+                const el = this.el;
+                const velocity = this.data;
+                const position = el.object3D.position;
+
+                // Update position based on velocity
+                position.x += velocity.x * timeDelta / 1000;
+                position.y += velocity.y * timeDelta / 1000;
+                position.z += velocity.z * timeDelta / 1000;
+
+                // Apply gravity
+                velocity.y -= 9.8 * timeDelta / 1000;
+
+                // Reset position if the ball falls below ground
+                if (position.y < 0.5) {
+                    position.set(0, 1, -3);  // Reset ball position
+                    velocity.x = 0;
+                    velocity.y = 0;
+                    velocity.z = 0;
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <a-scene physics="gravity: -9.8">
+        <!-- Camera with cursor -->
+        <a-entity camera look-controls position="0 1.6 0">
+            <a-cursor></a-cursor>
+        </a-entity>
+
+        <!-- Lights -->
+        <a-entity light="type: directional; intensity: 1" position="5 10 5"></a-entity>
+        <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+
+        <!-- Basketball court -->
+        <a-plane id="court" 
+                 src="texture/field.jpg" 
+                 height="20" width="10" 
+                 rotation="-90 0 0"
+                 material="repeat: true; repeat-wrapping: true">
+        </a-plane>
+
+        <!-- 3D Basketball Hoop with Backboard and Ring -->
+        <a-entity position="0 3 -5">
+            <!-- Backboard -->
+            <a-box src="texture/hoop.jpg" height="1.5" width="2" depth="0.1" position="0 0.75 0.2"></a-box>
+            <!-- Hoop Ring -->
+            <a-ring color="#FF4500" radius-inner="0.15" radius-outer="0.2" position="0 0 0.1" rotation="90 0 0"></a-ring>
+            <!-- Hoop Post -->
+            <a-cylinder color="#FF4500" height="0.5" radius="0.05" position="0 2 -0.2"></a-cylinder>
+        </a-entity>
+
+        <!-- Basketball -->
+        <a-sphere id="basketball" 
+                  src="texture/Basketball.jpg"  
+                  radius="0.25" 
+                  position="0 1 -3"
+                  basketball-controller 
+                  velocity>
+        </a-sphere>
+
+        <!-- Stadium Walls -->
+        <a-box color="#8B0000" height="5" width="12" depth="0.5" position="0 2.5 -10"></a-box>
+        <a-box color="#8B0000" height="5" width="12" depth="0.5" position="0 2.5 10"></a-box>
+        <a-box color="#8B0000" height="5" width="0.5" depth="20" position="-6 2.5 0"></a-box>
+        <a-box color="#8B0000" height="5" width="0.5" depth="20" position="6 2.5 0"></a-box>
+
+        <!-- Tribunes (Spectators) -->
+        <a-cylinder color="#A9A9A9" radius="4" height="0.2" position="0 0.1 -8" rotation="-90 0 0"></a-cylinder>
+        <a-cylinder color="#A9A9A9" radius="3.5" height="0.2" position="0 0.3 -8" rotation="-90 0 0"></a-cylinder>
+        <a-cylinder color="#A9A9A9" radius="3" height="0.2" position="0 0.5 -8" rotation="-90 0 0"></a-cylinder>
+        <a-cylinder color="#A9A9A9" radius="2.5" height="0.2" position="0 0.7 -8" rotation="-90 0 0"></a-cylinder>
+
+        <!-- Spectator Seats -->
+        <a-box color="#8B0000" height="0.5" width="0.8" depth="0.8" position="-4 0.1 -7.5"></a-box>
+        <a-box color="#8B0000" height="0.5" width="0.8" depth="0.8" position="4 0.1 -7.5"></a-box>
+
+        <!-- Sky -->
+        <a-sky color="#87CEEB"></a-sky>
+
+        <!-- Instructions -->
+        <a-text value="Click on the ball to throw it!" 
+                position="-3 4 -3" 
+                color="#000000">
+        </a-text>
+    </a-scene>
+</body>
+</html>

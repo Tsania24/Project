@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Escape Room</title>
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script>
+        AFRAME.registerComponent('texture-loader', {
+            schema: {
+                src: {},
+                material_tex: {},
+                mesh: {},
+                texture: {},
+                normal: {type: "boolean"},
+                normal_src: {},
+                wrap: {type: "boolean", default: false},
+                repeat: {type: "boolean", default: false}
+            },
+            init: function () {
+                console.log('Texture loader initialized');
+            },
+            update: function () {
+                this.data.texture = new THREE.TextureLoader().load(this.data.src);
+
+                this.data.texture.anisotropy = 16;
+                this.data.texture.minFilter = THREE.NearestFilter;
+                this.data.texture.maxFilter = THREE.NearestFilter;
+                this.data.material_tex = new THREE.MeshLambertMaterial({map: this.data.texture});
+                const el = this.el;
+                this.data.mesh = el.getObject3D('mesh');
+                this.data.mesh.material = this.data.material_tex;
+
+                if (this.data.normal === true) {
+                    console.log('Normal map applied');
+                    this.data.normal_map = new THREE.TextureLoader().load(this.data.normal_src);
+                    this.data.mesh.material.normalMap = this.data.normal_map;
+                    this.data.mesh.receiveShadow = true;
+                }
+                if (this.data.wrap === true && this.data.repeat === true) {
+                    this.data.texture.wrapS = this.data.texture.wrapT = THREE.RepeatWrapping;
+                    this.data.texture.repeat.set(5, 5);
+                }
+            }
+        });
+
+        AFRAME.registerComponent('interactive-door', {
+            schema: {
+                open: {type: 'boolean', default: false},
+                locked: {type: 'boolean', default: true},
+                correctCode: {type: 'string', default: '1234'}
+            },
+            init: function () {
+                this.el.addEventListener('click', () => {
+                    if (this.data.locked) {
+                        const userCode = prompt('The door is locked. Enter the code to unlock:');
+                        if (userCode === this.data.correctCode) {
+                            alert('Correct code! The door is now unlocked.');
+                            this.data.locked = false;
+                        } else {
+                            alert('Incorrect code. Try again.');
+                        }
+                    } else {
+                        this.data.open = !this.data.open;
+                        if (this.data.open) {
+                            this.el.setAttribute('animation', 'property: rotation; to: 0 90 0; dur: 1000');
+                        } else {
+                            this.el.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 1000');
+                        }
+                    }
+                });
+            }
+        });
+
+        AFRAME.registerComponent('key-collector', {
+            init: function () {
+                this.el.addEventListener('click', () => {
+                    alert('You found the key! Now find the code to unlock the door.');
+                    this.el.parentNode.removeChild(this.el);
+                });
+            }
+        });
+
+        AFRAME.registerComponent('code-collector', {
+            init: function () {
+                this.el.addEventListener('click', () => {
+                    alert('You found the code! Use it along with the key to unlock the door.');
+                    this.el.parentNode.removeChild(this.el);
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <a-scene fog="type: exponential; density: 0.1; color: #cce0ff">
+        <!-- Lighting -->
+        <a-entity id="dir-light" light="type: directional; color: #dfebff; intensity: 1" position="50 200 100"></a-entity>
+        <a-entity light="type: ambient; color: #666666"></a-entity>
+
+        <!-- Room Structure -->
+        <a-plane texture-loader="src: texture/wood.jpg; wrap: true; repeat: true" height="10" width="10" rotation="-90 0 0"></a-plane>
+        <a-box texture-loader="src: texture/wall.jpg" position="-4.25 2.5 -5" depth="0.1" height="5" width="7"></a-box>
+        <a-box texture-loader="src: texture/wall.jpg" position="4.25 2.5 -5" depth="0.1" height="5" width="7"></a-box>
+        <a-box texture-loader="src: texture/wall.jpg" position="-5 2.5 0" depth="10" height="5" width="0.1"></a-box>
+        <a-box texture-loader="src: texture/wall.jpg" position="5 2.5 0" depth="10" height="5" width="0.1"></a-box>
+
+        <!-- Exit Door (Hole in Wall) -->
+        <a-box id="door" interactive-door position="0 1.5 -4.95" depth="0.1" height="3" width="1.5" color="#654321"></a-box>
+        
+        <!-- Key -->
+        <a-box id="key" key-collector position="2 0.5 -2" depth="0.2" height="0.2" width="0.2" color="#FFD700"></a-box>
+
+        <!-- Code Card in a Box -->
+        <a-box position="-2 0.5 -2" depth="0.5" height="0.5" width="0.5" color="#8B4513">
+            <a-plane id="code-card" code-collector position="0 0.3 0.26" rotation="-90 0 0" width="0.4" height="0.3" color="#FFFFFF" text="value: CODE: 1234; align: center; color: black; baseline: top; wrap-count: 10;"></a-plane>
+        </a-box>
+
+        <!-- Top Wall -->
+        <a-box texture-loader="src: texture/wall.jpg" position="0 5 -5" depth="10" height="0.1" width="10"></a-box>
+
+        <!-- Back Wall -->
+        <a-box texture-loader="src: texture/wall.jpg" position="0 2.5 -10" depth="0.1" height="5" width="10"></a-box>
+
+        <!-- Camera and Cursor -->
+        <a-entity id="camera" camera="userHeight: 1.6" look-controls position="0 1.6 0">
+            <a-cursor></a-cursor>
+        </a-entity>
+
+        <!-- Sky -->
+        <a-sky color="#87CEEB"></a-sky>
+    </a-scene>
+</body>
+</html>
